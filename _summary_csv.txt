@@ -1,0 +1,3 @@
+Columns for summary csv:
+
+tweet_id, user_id, timestamp, latitude, longitude, text
