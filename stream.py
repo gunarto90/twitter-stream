@@ -66,6 +66,12 @@ def write_to_file(filename, text, append=True):
     with open(filename, mode) as fw:
         fw.write(str(text) + '\n')
         
+def make_sure_path_exists(path):
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        pass
+        
 def normalize_tweet_text(tweet_text):
     # Normalize text
     ## Remove comma, linefeed, and tab
@@ -79,7 +85,8 @@ def normalize_tweet_text(tweet_text):
     tweet_text = str(tweet_text)
     return tweet_text
         
-def extract_line(directory, country_code, count, count_thousands, today, line):
+def extract_line(directory, today, line):
+    line = json.loads(line)
     try:
         try:
             lang = line['lang'] # String
@@ -101,6 +108,12 @@ def extract_line(directory, country_code, count, count_thousands, today, line):
         tweet_id = line['id'] # Integer
         tweet_text = line['text'] # String
         retweet_count = line['retweet_count']
+        place = line['place']
+        ccode = 'NA'
+        cname = 'default'
+        if place is not None:
+            ccode = place['country_code']
+            cname = place['country']
         # Extract user information
         user_id = user['id'] # Integer
         utc_offset = user['utc_offset'] # Integer
@@ -140,13 +153,14 @@ def extract_line(directory, country_code, count, count_thousands, today, line):
             # Normalize text
             tweet_text = normalize_tweet_text(tweet_text)
             # Write all logs
-            f_summary  = '{0}logs/summary_{1}_{2}.csv'.format(directory, country_code, today) 
+            f_summary  = 'summary_{0}_{1}.csv'.format(ccode, cname) 
             csv_output = '{0},{1},{2},{3},{4},{5},{6}'.format(tweet_id, user_id, timestamp_ms, gps[0], gps[1], tweet_text, utc_offset)
             if csv_output != '':
-                write_to_file(f_summary, csv_output)
+                write_to_file(directory + f_summary, csv_output)
         #time.sleep(1)
     except Exception as ex:
-        f_error = '{0}logs/error_{1}.txt'.format(directory, today)
+        f_error = '{0}/error_{1}.txt'.format(directory, today)
+        make_sure_path_exists(directory)
         with open(f_error, 'a') as fw:
             fw.write('[{0}] Extract Exception {1}\n'.format(str(datetime.now()),ex))
             fw.write('[{0}] {1}\n'.format(str(datetime.now()),line))
@@ -181,8 +195,8 @@ def main():
         # api.GetStreamFilter will return a generator that yields one status
         # message (i.e., Tweet) at a time as a JSON dictionary.
     try:
+        today = date.today()
         if USING_TWITTER:
-            today = date.today()
             count_day = 0
             counter = 0
             count_thousands = 0
@@ -210,7 +224,7 @@ def main():
                             print country_code
                         print today
                     # Write json to file
-                    f_complete = '{0}logs/log_{1}_{2}.txt'.format(directory, country_code, today)
+                    f_complete = '{0}/logs/log_{1}_{2}.txt'.format(directory, country_code, today)
                     #print json.dumps(line)
                     write_to_file(f_complete, json.dumps(line))
                     # Counter
@@ -219,11 +233,8 @@ def main():
                         counter = 0
                         count_thousands = count_thousands + 1
                         print('[{0}] Processed {1},000 tweets'.format(str(datetime.now()),count_thousands))
-                # except TwitterError as te:
-                #     f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
-                #     write_to_file(f_error, '[{0}] Twitter Error: {1}\n'.format(str(datetime.now()),ex))
                 except Exception as ex:
-                    f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
+                    f_error = '{0}/logs/error_{1}.txt'.format(directory, str(today))
                     with open(f_error, 'a') as fw:
                         fw.write('[{0}] Line Exception {1}\n'.format(str(datetime.now()),ex))
                         fw.write('[{0}] {1}\n'.format(str(datetime.now()),line))
@@ -231,10 +242,18 @@ def main():
             # Loop through os files
             # and create similar filename but using csv
             # Extract json and write into csv file
-            #extract_line(directory, country_code, counter, count_thousands, today, line)
+            for subdir, dirs, files in os.walk(directory):
+                for file in files:
+                    if file.startswith('log'):
+                        print '[{0}] Processing file : {1}'.format(str(datetime.now()), file)
+                        with open(directory + file, 'r') as fin:
+                            for line in fin:
+                                extract_line(directory, today, line)
             pass
+        print 'Program finished '
     except Exception as ex:
-        f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
+        f_error = '{0}/logs/error_{1}.txt'.format(directory, str(today))
+        make_sure_path_exists(directory + '/logs')
         write_to_file(f_error, '[{0}] Outer Exception {1}\n'.format(str(datetime.now()),ex))
         
 ##########################
