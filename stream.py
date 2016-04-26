@@ -39,28 +39,32 @@ AU = ['105.785815', '-44.513723', '154.301442', '-12.449423']   # Australia
 NZ = ['164.772949', '-47.15984', '179.626465', '-33.94336']     # New Zealand
 SEA = ['90.825760', '-11.836210', '153.766943', '21.217420']    # South East Asian
 AF = ['-25.195408', '-35.880958', '32.812407', '31.960635']     # African
-countries = ['UK', 'US', 'AU', 'NZ', 'SEA', 'AF']
-global today
+COUNTRIES = ['UK', 'US', 'AU', 'NZ', 'SEA', 'AF']
+DAY_CYCLE = 2
 
-def getLocation(map):
-    if map == 'UK':
-        return UK
-    elif map == 'US':
-        return US
-    elif map == 'AU':
-        return AU
-    elif map == 'NZ':
-        return NZ
-    elif map == 'SEA':
-        return SEA
-    elif map == 'AF':
-        return AF
+def getLocation(country_code):
+    if country_code == 'UK':
+        return UK, 0
+    elif country_code == 'US':
+        return US, 1
+    elif country_code == 'AU':
+        return AU, 2
+    elif country_code == 'NZ':
+        return NZ, 3
+    elif country_code == 'SEA':
+        return SEA, 4
+    elif country_code == 'AF':
+        return AF, 5
     else:
-        return UK
+        return UK, 0
         
-def write_to_file(filename, str):
-    with open(filename, 'a') as fw:
-        fw.write(str + '\n')
+def write_to_file(filename, text, append=True):
+    if append:
+        mode = 'a'
+    else:
+        mode = 'w'
+    with open(filename, mode) as fw:
+        fw.write(str(text) + '\n')
         
 def normalize_tweet_text(tweet_text):
     # Normalize text
@@ -75,7 +79,7 @@ def normalize_tweet_text(tweet_text):
     tweet_text = str(tweet_text)
     return tweet_text
         
-def extract_line(directory, map, count, count_thousands, today, line):
+def extract_line(directory, country_code, count, count_thousands, today, line):
     try:
         try:
             lang = line['lang'] # String
@@ -99,6 +103,11 @@ def extract_line(directory, map, count, count_thousands, today, line):
         retweet_count = line['retweet_count']
         # Extract user information
         user_id = user['id'] # Integer
+        utc_offset = user['utc_offset'] # Integer
+        if utc_offset is None:
+            utc_offset = ''
+        else :
+            utc_offset = str(utc_offset).strip()
         #friends_count = user['friends_count'] # Integer
         #followers_count = user['followers_count'] # Integer
         #statuses_count = user['statuses_count'] # Integer
@@ -131,11 +140,10 @@ def extract_line(directory, map, count, count_thousands, today, line):
             # Normalize text
             tweet_text = normalize_tweet_text(tweet_text)
             # Write all logs
-            f_complete = '{0}logs/log_{1}_{2}.txt'.format(directory, map, today)
-            f_summary  = '{0}logs/summary_{1}_{2}.csv'.format(directory, map, today) 
-            #print json.dumps(line)
-            write_to_file(f_complete, json.dumps(line))
-            write_to_file(f_summary, '{0},{1},{2},{3},{4},{5}\n'.format(tweet_id, user_id, timestamp_ms, gps[0], gps[1], tweet_text))
+            f_summary  = '{0}logs/summary_{1}_{2}.csv'.format(directory, country_code, today) 
+            csv_output = '{0},{1},{2},{3},{4},{5},{6}'.format(tweet_id, user_id, timestamp_ms, gps[0], gps[1], tweet_text, utc_offset)
+            if csv_output != '':
+                write_to_file(f_summary, csv_output)
         #time.sleep(1)
     except Exception as ex:
         f_error = '{0}logs/error_{1}.txt'.format(directory, today)
@@ -149,53 +157,82 @@ def extract_line(directory, map, count, count_thousands, today, line):
 
 def main():
     arglen = len(sys.argv)
+    USING_TWITTER = False
     if arglen == 3:
         directory = sys.argv[1]
-        map = sys.argv[2]
-        LOCATIONS = getLocation(map)
-        #print map
+        country_code = sys.argv[2]
+        LOCATIONS, selected = getLocation(country_code)
+        USING_TWITTER = True
+        #print country_code
+        #print LOCATIONS
+        #print selected
+    elif arglen == 2:
+        directory = sys.argv[1]
     else :
         print 'Please give two inputs: directory name and country code {US, UK, AU, NZ, SEA, AF}'
         return
     if directory != '':
         directory = directory + '/'
-    loadConfig('config_secret.json')
-    # Since we're going to be using a streaming endpoint, there is no need to worry
-    # about rate limits.
-    api = Api(CONSUMER_KEY,
-              CONSUMER_SECRET,
-              ACCESS_TOKEN,
-              ACCESS_TOKEN_SECRET)
-    # api.GetStreamFilter will return a generator that yields one status
-    # message (i.e., Tweet) at a time as a JSON dictionary.
+    if USING_TWITTER:
+        loadConfig('config_secret.json')
+        # Since we're going to be using a streaming endpoint, there is no need to worry
+        # about rate limits.
+        api = Api(CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
+        # api.GetStreamFilter will return a generator that yields one status
+        # message (i.e., Tweet) at a time as a JSON dictionary.
     try:
-        today = ''
-        #counter = 0
-        #count_thousands = 0
-        for line in api.GetStreamFilter(locations=LOCATIONS, stall_warnings=True):
-            try:
-                if date.today() != today :
-                    # Change day
-                    today = date.today()
-                    counter = 0
-                    count_thousands = 0
-                    print map
-                    print today
-                extract_line(directory, map, counter, count_thousands, today, line)
-                # Counter
-                counter = counter + 1
-                if counter % 1000 == 0 and counter > 0:
-                    counter = 0
-                    count_thousands = count_thousands + 1
-                    print('[{0}] Processed {1},000 tweets'.format(str(datetime.now()),count_thousands))
-            # except TwitterError as te:
-            #     f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
-            #     write_to_file(f_error, '[{0}] Twitter Error: {1}\n'.format(str(datetime.now()),ex))
-            except Exception as ex:
-                f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
-                with open(f_error, 'a') as fw:
-                    fw.write('[{0}] Line Exception {1}\n'.format(str(datetime.now()),ex))
-                    fw.write('[{0}] {1}\n'.format(str(datetime.now()),line))
+        if USING_TWITTER:
+            today = date.today()
+            count_day = 0
+            counter = 0
+            count_thousands = 0
+            print country_code
+            print today
+            for line in api.GetStreamFilter(locations=LOCATIONS, stall_warnings=True):
+                try:
+                    if date.today() != today :
+                        # Change day
+                        today = date.today()
+                        try:
+                            print('--- End of the day ---')
+                            print('[{0}] Processed {1:,} tweets'.format(str(datetime.now()),counter))
+                        except:
+                            pass
+                        counter = 0
+                        count_thousands = 0
+                        count_day += 1
+                        if count_day == DAY_CYCLE:
+                            count_day = 0
+                            # Change the countries
+                            selected = (selected + 1 ) % len(COUNTRIES)
+                            country_code = COUNTRIES[selected]
+                            LOCATIONS, selected = getLocation(country_code)
+                            print country_code
+                        print today
+                    # Write json to file
+                    f_complete = '{0}logs/log_{1}_{2}.txt'.format(directory, country_code, today)
+                    #print json.dumps(line)
+                    write_to_file(f_complete, json.dumps(line))
+                    # Counter
+                    counter = counter + 1
+                    if counter % 1000 == 0 and counter > 0:
+                        counter = 0
+                        count_thousands = count_thousands + 1
+                        print('[{0}] Processed {1},000 tweets'.format(str(datetime.now()),count_thousands))
+                # except TwitterError as te:
+                #     f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
+                #     write_to_file(f_error, '[{0}] Twitter Error: {1}\n'.format(str(datetime.now()),ex))
+                except Exception as ex:
+                    f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
+                    with open(f_error, 'a') as fw:
+                        fw.write('[{0}] Line Exception {1}\n'.format(str(datetime.now()),ex))
+                        fw.write('[{0}] {1}\n'.format(str(datetime.now()),line))
+        else:
+            # Loop through os files
+            # and create similar filename but using csv
+            # Extract json and write into csv file
+            #extract_line(directory, country_code, counter, count_thousands, today, line)
+            pass
     except Exception as ex:
         f_error = '{0}logs/error_{1}.txt'.format(directory, str(today))
         write_to_file(f_error, '[{0}] Outer Exception {1}\n'.format(str(datetime.now()),ex))
