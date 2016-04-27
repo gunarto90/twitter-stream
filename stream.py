@@ -202,6 +202,7 @@ def main():
             count_thousands = 0
             print country_code
             print today
+            str_out = ''
             for line in api.GetStreamFilter(locations=LOCATIONS, stall_warnings=True):
                 try:
                     if date.today() != today :
@@ -223,12 +224,20 @@ def main():
                             LOCATIONS, selected = getLocation(country_code)
                             print country_code
                         print today
+                        # Write remaining data into file
+                        if str_out != '':
+                            write_to_file(f_complete, str_out)
+                        str_out = ''
                     # Write json to file
                     f_complete = '{0}/logs/log_{1}_{2}.txt'.format(directory, country_code, today)
                     #print json.dumps(line)
-                    write_to_file(f_complete, json.dumps(line))
+                    str_out += json.dumps(line)
                     # Counter
                     counter = counter + 1
+                    if counter % 100 == 0:
+                        if str_out != '':
+                            write_to_file(f_complete, str_out)
+                        str_out = ''
                     if counter % 1000 == 0 and counter > 0:
                         counter = 0
                         count_thousands = count_thousands + 1
