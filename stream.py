@@ -209,8 +209,8 @@ def main():
                         # Change day
                         today = date.today()
                         try:
+                            print('[{0}] Processed {1:,} tweets'.format(str(datetime.now()), count_thousands*1000 + counter))
                             print('--- End of the day ---')
-                            print('[{0}] Processed {1:,} tweets'.format(str(datetime.now()),counter))
                         except:
                             pass
                         counter = 0
@@ -234,7 +234,7 @@ def main():
                     str_out += json.dumps(line)
                     # Counter
                     counter = counter + 1
-                    if counter % 100 == 0:
+                    if counter % 25 == 0:
                         if str_out != '':
                             write_to_file(f_complete, str_out)
                         str_out = ''
