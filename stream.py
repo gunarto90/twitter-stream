@@ -86,7 +86,11 @@ def normalize_tweet_text(tweet_text):
     return tweet_text
         
 def extract_line(directory, today, line):
-    line = json.loads(line)
+    line = line.strip()
+    line = line.replace('\n', '\\n')
+    if line == '':
+        return
+    line = json.loads(line, strict=False)
     try:
         try:
             lang = line['lang'] # String
@@ -154,7 +158,7 @@ def extract_line(directory, today, line):
             tweet_text = normalize_tweet_text(tweet_text)
             # Write all logs
             f_summary  = 'summary_{0}_{1}.csv'.format(ccode, cname) 
-            csv_output = '{0},{1},{2},{3},{4},{5},{6}\n'.format(tweet_id, user_id, timestamp_ms, gps[0], gps[1], tweet_text, utc_offset)
+            csv_output = '{0},{1},{2},{3},{4},{5},{6}'.format(tweet_id, user_id, timestamp_ms, gps[0], gps[1], tweet_text, utc_offset)
             if csv_output != '':
                 write_to_file(directory + f_summary, csv_output)
         #time.sleep(1)
@@ -257,7 +261,10 @@ def main():
                         print '[{0}] Processing file : {1}'.format(str(datetime.now()), file)
                         with open(directory + file, 'r') as fin:
                             for line in fin:
-                                extract_line(directory, today, line)
+                                try:
+                                    extract_line(directory, today, line)
+                                except:
+                                    pass
             pass
         print 'Program finished '
     except Exception as ex:
