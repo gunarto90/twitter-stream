@@ -154,7 +154,7 @@ def extract_line(directory, today, line):
             tweet_text = normalize_tweet_text(tweet_text)
             # Write all logs
             f_summary  = 'summary_{0}_{1}.csv'.format(ccode, cname) 
-            csv_output = '{0},{1},{2},{3},{4},{5},{6}'.format(tweet_id, user_id, timestamp_ms, gps[0], gps[1], tweet_text, utc_offset)
+            csv_output = '{0},{1},{2},{3},{4},{5},{6}\n'.format(tweet_id, user_id, timestamp_ms, gps[0], gps[1], tweet_text, utc_offset)
             if csv_output != '':
                 write_to_file(directory + f_summary, csv_output)
         #time.sleep(1)
@@ -231,7 +231,7 @@ def main():
                     # Write json to file
                     f_complete = '{0}/logs/log_{1}_{2}.txt'.format(directory, country_code, today)
                     #print json.dumps(line)
-                    str_out += json.dumps(line)
+                    str_out = '{0}{1}\n'.format(str_out, json.dumps(line))
                     # Counter
                     counter = counter + 1
                     if counter % 25 == 0:
