@@ -103,7 +103,7 @@ def extract_line(directory, today, line):
         try:
             geo = line['geo'] # String
         except Exception as ex:
-            #print 'Geo Exception %s' % ex
+            #print('Geo Exception %s' % ex)
             return
         #geo = line['geo'] # Object
         timestamp_ms = line['timestamp_ms'] # Long Integer
@@ -150,10 +150,10 @@ def extract_line(directory, today, line):
                 for var in coordinates:
                     gps.append(str(var))
             except Exception as ex:
-                print 'Coordinate Exception %s' % ex
+                print('Coordinate Exception {}'.format(ex))
                 return
-            #print gps[0]
-            #print gps[1]
+            #print(gps[0])
+            #print(gps[1])
             # Normalize text
             tweet_text = normalize_tweet_text(tweet_text)
             # Write all logs
@@ -181,13 +181,10 @@ def main():
         country_code = sys.argv[2]
         LOCATIONS, selected = getLocation(country_code)
         USING_TWITTER = True
-        #print country_code
-        #print LOCATIONS
-        #print selected
     elif arglen == 2:
         directory = sys.argv[1]
     else :
-        print 'Please give two inputs: directory name and country code {US, UK, AU, NZ, SEA, AF}'
+        print('Please give two inputs: directory name and country code {US, UK, AU, NZ, SEA, AF}')
         return
     if directory != '':
         directory = directory + '/'
@@ -204,53 +201,56 @@ def main():
             count_day = 0
             counter = 0
             count_thousands = 0
-            print country_code
-            print today
+            print(country_code)
+            print(today)
             str_out = ''
-            for line in api.GetStreamFilter(locations=LOCATIONS, stall_warnings=True):
-                try:
-                    if date.today() != today :
-                        # Change day
-                        today = date.today()
-                        try:
-                            print('[{0}] Processed {1:,} tweets'.format(str(datetime.now()), count_thousands*1000 + counter))
-                            print('--- End of the day ---')
-                        except:
-                            pass
-                        counter = 0
-                        count_thousands = 0
-                        count_day += 1
-                        if count_day == DAY_CYCLE:
-                            count_day = 0
-                            # Change the countries
-                            selected = (selected + 1 ) % len(COUNTRIES)
-                            country_code = COUNTRIES[selected]
-                            LOCATIONS, selected = getLocation(country_code)
-                            print country_code
-                        print today
-                        # Write remaining data into file
-                        if str_out != '':
-                            write_to_file(f_complete, str_out)
-                        str_out = ''
-                    # Write json to file
-                    f_complete = '{0}/logs/log_{1}_{2}.txt'.format(directory, country_code, today)
-                    #print json.dumps(line)
-                    str_out = '{0}{1}\n'.format(str_out, json.dumps(line))
-                    # Counter
-                    counter = counter + 1
-                    if counter % 25 == 0:
-                        if str_out != '':
-                            write_to_file(f_complete, str_out)
-                        str_out = ''
-                    if counter % 1000 == 0 and counter > 0:
-                        counter = 0
-                        count_thousands = count_thousands + 1
-                        print('[{0}] Processed {1},000 tweets'.format(str(datetime.now()),count_thousands))
-                except Exception as ex:
-                    f_error = '{0}/logs/error_{1}.txt'.format(directory, str(today))
-                    with open(f_error, 'a') as fw:
-                        fw.write('[{0}] Line Exception {1}\n'.format(str(datetime.now()),ex))
-                        fw.write('[{0}] {1}\n'.format(str(datetime.now()),line))
+            while(True):
+                for line in api.GetStreamFilter(locations=LOCATIONS):
+                # warning: "limit"
+                    try:
+                        if date.today() != today :
+                            # Change day
+                            today = date.today()
+                            try:
+                                print('[{0}] Processed {1:,} tweets'.format(str(datetime.now()), count_thousands*1000 + counter))
+                                print('--- End of the day ---')
+                            except:
+                                pass
+                            counter = 0
+                            count_thousands = 0
+                            count_day += 1
+                            print(today)
+                            # Write remaining data into file
+                            if str_out != '':
+                                write_to_file(f_complete, str_out)
+                            str_out = ''
+                            if count_day == DAY_CYCLE:
+                                count_day = 0
+                                # Change the countries
+                                selected = (selected + 1 ) % len(COUNTRIES)
+                                country_code = COUNTRIES[selected]
+                                LOCATIONS, selected = getLocation(country_code)
+                                print(country_code)
+                                break                            
+                        # Write json to file
+                        f_complete = '{0}/logs/log_{1}_{2}.txt'.format(directory, country_code, today)
+                        #print json.dumps(line)
+                        str_out = '{0}{1}\n'.format(str_out, json.dumps(line))
+                        # Counter
+                        counter = counter + 1
+                        if counter % 25 == 0:
+                            if str_out != '':
+                                write_to_file(f_complete, str_out)
+                            str_out = ''
+                        if counter % 1000 == 0 and counter > 0:
+                            counter = 0
+                            count_thousands = count_thousands + 1
+                            print('[{0}] Processed {1},000 tweets'.format(str(datetime.now()),count_thousands))
+                    except Exception as ex:
+                        f_error = '{0}/logs/error_{1}.txt'.format(directory, str(today))
+                        with open(f_error, 'a') as fw:
+                            fw.write('[{0}] Line Exception {1}\n'.format(str(datetime.now()),ex))
+                            fw.write('[{0}] {1}\n'.format(str(datetime.now()),line))
         else:
             # Loop through os files
             # and create similar filename but using csv
@@ -258,7 +258,7 @@ def main():
             for subdir, dirs, files in os.walk(directory):
                 for file in files:
                     if file.startswith('log'):
-                        print '[{0}] Processing file : {1}'.format(str(datetime.now()), file)
+                        print('[{0}] Processing file : {1}'.format(str(datetime.now()), file))
                         with open(directory + file, 'r') as fin:
                             for line in fin:
                                 try:
@@ -266,7 +266,7 @@ def main():
                                 except:
                                     pass
             pass
-        print 'Program finished '
+        print('Program finished ')
     except Exception as ex:
         f_error = '{0}/logs/error_{1}.txt'.format(directory, str(today))
         make_sure_path_exists(directory + '/logs')
